@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { mrpRunInput, uuid } from "@/lib/validation";
+import { mrpRunInput, uuid, workOrderInput } from "@/lib/validation";
 import type { Database, Sql } from "../db";
 import { authorize, today, type ServiceContext } from "../context";
 import { ConflictError, NotFoundError, ValidationError } from "../errors";
@@ -214,16 +214,16 @@ export async function approveSuggestions(db: Database, ctx: ServiceContext, sugg
     }
     for (const m of rows.filter((r) => r.suggestion_type === "manufacture")) {
       const start = maxDate(m.release_date, asOf);
-      const wo = await createWorkOrderTx(tx, ctx, {
+      const wo = await createWorkOrderTx(tx, ctx, workOrderInput.parse({
         itemId: m.item_id,
         quantity: m.quantity,
         plannedStart: start,
         dueDate: maxDate(m.need_date, start),
-        warehouseId: targetWarehouse(m, "output"),
+        warehouseId: targetWarehouse(m, "output") ?? null,
         priority: m.release_date < asOf ? "high" : "normal",
         notes: "Created from MRP suggestion",
         source: "mrp",
-      });
+      }));
       await tx.query(
         `update mrp_suggestions set status = 'approved', decided_by = $2, decided_at = $3, created_document_type = 'work_order',
            created_document_id = $4, created_document_number = $5 where id = $1`,

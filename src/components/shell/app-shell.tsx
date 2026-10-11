@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { formatDate } from "@/lib/format";
@@ -11,29 +11,38 @@ import { Logo } from "./logo";
 import type { ShellData } from "./types";
 
 const COLLAPSE_KEY = "forgeflow.sidebar.collapsed";
+const COLLAPSE_EVENT = "forgeflow:sidebar";
+
+// Sidebar preference lives in localStorage; read it as an external store so the server render
+// (always expanded) and the client never disagree during hydration.
+function readCollapsed() {
+  try {
+    return localStorage.getItem(COLLAPSE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+function subscribeCollapsed(onChange: () => void) {
+  window.addEventListener("storage", onChange);
+  window.addEventListener(COLLAPSE_EVENT, onChange);
+  return () => {
+    window.removeEventListener("storage", onChange);
+    window.removeEventListener(COLLAPSE_EVENT, onChange);
+  };
+}
 
 export function AppShell({ data, children }: { data: ShellData; children: React.ReactNode }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const collapsed = useSyncExternalStore(subscribeCollapsed, readCollapsed, () => false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
-  useEffect(() => {
+  const toggle = useCallback(() => {
     try {
-      setCollapsed(localStorage.getItem(COLLAPSE_KEY) === "1");
+      localStorage.setItem(COLLAPSE_KEY, readCollapsed() ? "0" : "1");
     } catch {
       /* storage unavailable */
     }
-  }, []);
-
-  const toggle = useCallback(() => {
-    setCollapsed((c) => {
-      try {
-        localStorage.setItem(COLLAPSE_KEY, c ? "0" : "1");
-      } catch {
-        /* storage unavailable */
-      }
-      return !c;
-    });
+    window.dispatchEvent(new Event(COLLAPSE_EVENT));
   }, []);
 
   const demoFooter = data.org.isDemo ? (

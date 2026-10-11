@@ -4,12 +4,13 @@ import type { Database } from "./types";
 
 export const MIGRATIONS_DIR = path.join(process.cwd(), "supabase", "migrations");
 
+// The SQL files ship via outputFileTracingIncludes (next.config.ts), so tracing can skip these reads.
 export function listMigrations(dir = MIGRATIONS_DIR): { name: string; sql: string }[] {
   return fs
-    .readdirSync(dir)
+    .readdirSync(/*turbopackIgnore: true*/ dir)
     .filter((f) => f.endsWith(".sql"))
     .sort()
-    .map((name) => ({ name, sql: fs.readFileSync(path.join(dir, name), "utf8") }));
+    .map((name) => ({ name, sql: fs.readFileSync(/*turbopackIgnore: true*/ path.join(dir, name), "utf8") }));
 }
 
 /**

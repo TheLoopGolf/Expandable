@@ -107,7 +107,7 @@ export function WorkOrderForm({
             <option value="urgent">Urgent</option>
           </select>
         </Field>
-        <Field label="Output warehouse" hint="Defaults to the item's warehouse">
+        <Field label="Output warehouse" error={e.warehouseId?.message} hint="Defaults to the item's warehouse">
           <select className={selectClass} {...form.register("warehouseId")}>
             <option value="">Item default</option>
             {warehouses.map((w) => (
@@ -117,7 +117,7 @@ export function WorkOrderForm({
             ))}
           </select>
         </Field>
-        <Field label="Material warehouse" hint="Defaults to the site's stores">
+        <Field label="Material warehouse" error={e.materialWarehouseId?.message} hint="Defaults to the site's stores">
           <select className={selectClass} {...form.register("materialWarehouseId")}>
             <option value="">Site stores</option>
             {warehouses.map((w) => (

@@ -83,7 +83,7 @@ See `docs/ERD.md` for the full diagram. Main aggregates:
 
 ## 5. Assumptions
 
-- Inventory is valued at **standard cost** (item `standard_cost`); variances are not yet posted.
+- Inventory is valued at **standard cost** (item `standard_cost`). Purchase price variance posts at receipt; production (WIP) variance posts when a work order is closed.
 - Revenue for KPIs is recognized at **shipment** (shipped quantity × order price). Invoices are generated from shipped quantities.
 - One base currency per organization (USD in the demo); multi-currency is Phase 4+.
 - Reservations are item × warehouse (not lot-specific); lot selection happens FIFO-by-expiry at issue/ship time, skipping held lots.

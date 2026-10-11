@@ -9,6 +9,8 @@ import { createWorkOrder, holdWorkOrder } from "../services/production";
 import { createSalesOrder, reserveSalesOrder, shipSalesOrder } from "../services/sales";
 import { createCapa, openQualityEvent } from "../services/quality";
 import { receiveStock } from "../services/inventory";
+import { availability } from "../services/inventory-core";
+import { toStr } from "@/lib/decimal";
 import { runMrpPlanning } from "../services/planning";
 import { createEngineeringChange, advanceEngineeringChange } from "../services/engineering";
 import type { World } from "./master";
@@ -45,7 +47,8 @@ export async function todayScenarios(db: Database, world: World, rng: Rng, today
     lines: [{ lineId: qline.id, quantity: "40", lotNumber: `JDT-${yymmdd(today)}-Q1`, quarantine: true }],
   });
 
-  // Workflow 2 — kit with a two-component BOM: make sure components are on hand, then a draft WO for 10.
+  // Workflow 2 — kit with a two-component BOM: components on hand, a released WO for 10 with
+  // materials allocated, ready for issue and output recording.
   await receiveStock(db, ctx.sam, {
     itemId: items["CASE-CAL"].id,
     warehouseId: warehouses["MPL-STORES"].id,
@@ -59,7 +62,8 @@ export async function todayScenarios(db: Database, world: World, rng: Rng, today
     dueDate: addDays(today, 3),
     warehouseId: warehouses["MPL-FG"].id,
     materialWarehouseId: warehouses["MPL-STORES"].id,
-    notes: "Demo workflow 2: release, issue materials, record 5 good + 1 scrap",
+    release: true,
+    notes: "Demo workflow 2: issue the allocated materials, then record 5 good + 1 scrap",
   });
   log(`  workflow 2 WO: ${kitWo.number}`);
 
@@ -118,17 +122,28 @@ export async function todayScenarios(db: Database, world: World, rng: Rng, today
     description: "Request supplier calibration data and add 100% verification for next three lots",
     dueDate: addDays(today, 10),
   });
-  await createWorkOrder(db, ctx.riley, {
+  // Size the kit order so usable (non-held) probes cannot cover it: it reads "blocked" until
+  // quality releases the held lot. Sized from live availability so the scenario holds on any seed date.
+  const stores = warehouses["MPL-STORES"].id;
+  const freeQty = async (itemId: string) => Math.max(0, Math.floor(Number(toStr((await db.transaction((tx) => availability(tx, ctx.riley, itemId, stores))).available))));
+  const probeFree = await freeQty(items["PROBE-REF"].id);
+  const kitQty = probeFree + 6; // the held lot (40) covers the gap once released
+  const caseFree = await freeQty(items["CASE-CAL"].id);
+  if (caseFree < kitQty) {
+    await receiveStock(db, ctx.sam, { itemId: items["CASE-CAL"].id, warehouseId: stores, quantity: String(kitQty - caseFree + 4), reason: "Carry cases returned from field-service loaner pool" });
+  }
+  const blockedWo = await createWorkOrder(db, ctx.riley, {
     itemId: items["FG-CALKIT"].id,
-    quantity: "8",
+    quantity: String(kitQty),
     plannedStart: addDays(today, 1),
     dueDate: addDays(today, 4),
     warehouseId: warehouses["MPL-FG"].id,
-    materialWarehouseId: warehouses["MPL-STORES"].id,
+    materialWarehouseId: stores,
     priority: "high",
     release: true,
-    notes: "Demo workflow 4: blocked while the PROBE-REF lot is on hold",
+    notes: "Demo workflow 4: short until the PROBE-REF lot on quality hold is released",
   });
+  log(`  workflow 4 WO: ${blockedWo.number} (${kitQty} kits, ${probeFree} usable probes)`);
   log(`  workflow 4 NCR: ${ncr.number} (lot ${probeLot.lot_number})`);
 
   // Overdue CAPA and an open critical event for the quality dashboard.

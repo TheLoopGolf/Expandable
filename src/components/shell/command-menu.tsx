@@ -27,11 +27,12 @@ export function CommandMenu({ open, onOpenChange, permissions }: { open: boolean
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onOpenChange]);
 
+  // Results for short queries are hidden rather than cleared, so no state is set inside the effect.
+  const searchable = query.trim().length >= 2;
+  const visibleHits = searchable ? hits : [];
+
   useEffect(() => {
-    if (query.trim().length < 2) {
-      setHits([]);
-      return;
-    }
+    if (query.trim().length < 2) return;
     const handle = setTimeout(() => {
       startTransition(async () => setHits(await globalSearch(query)));
     }, 180);
@@ -50,7 +51,7 @@ export function CommandMenu({ open, onOpenChange, permissions }: { open: boolean
     [permissions, q],
   );
   const actions = QUICK_ACTIONS.filter((a) => permissions.includes(a.permission) && (!q || a.label.toLowerCase().includes(q)));
-  const grouped = hits.reduce<Record<string, SearchHit[]>>((acc, h) => {
+  const grouped = visibleHits.reduce<Record<string, SearchHit[]>>((acc, h) => {
     (acc[h.type] ??= []).push(h);
     return acc;
   }, {});

@@ -14,6 +14,11 @@ export const qty = decimalString(4);
 export const positiveQty = decimalString(4).refine((v) => Number(v) > 0, "Must be greater than zero");
 export const money = decimalString(4);
 export const uuid = z.string().uuid("Invalid identifier");
+/** Optional reference, e.g. a select left on its "none"/default option: "" and undefined become null. */
+export const optionalRef = z
+  .union([uuid, z.literal("")])
+  .nullish()
+  .transform((v) => v || null);
 export const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
 export const optionalText = z
   .string()
@@ -53,7 +58,7 @@ export const receiveInput = z.object({
         quantity: positiveQty,
         lotNumber: optionalText,
         expiresOn: isoDate.optional().nullable(),
-        binId: uuid.optional().nullable(),
+        binId: optionalRef,
         quarantine: z.boolean().optional(),
       }),
     )
@@ -110,11 +115,11 @@ export const workOrderInput = z.object({
   quantity: positiveQty,
   plannedStart: isoDate,
   dueDate: isoDate,
-  warehouseId: uuid.optional().nullable(),
-  materialWarehouseId: uuid.optional().nullable(),
-  workCenterId: uuid.optional().nullable(),
+  warehouseId: optionalRef,
+  materialWarehouseId: optionalRef,
+  workCenterId: optionalRef,
   priority: z.enum(["low", "normal", "high", "urgent"]).default("normal"),
-  salesOrderLineId: uuid.optional().nullable(),
+  salesOrderLineId: optionalRef,
   notes: optionalText,
   source: z.enum(["manual", "mrp"]).default("manual"),
   release: z.boolean().optional(),
@@ -124,7 +129,7 @@ export const issueInput = z.object({
   workOrderId: uuid,
   idempotencyKey: z.string().trim().min(8).max(100),
   lines: z
-    .array(z.object({ materialId: uuid, quantity: positiveQty, lotId: uuid.optional().nullable() }))
+    .array(z.object({ materialId: uuid, quantity: positiveQty, lotId: optionalRef }))
     .min(1, "Enter at least one quantity to issue"),
 });
 
@@ -133,7 +138,7 @@ export const productionInput = z.object({
   quantityGood: qty,
   quantityScrap: qty.default("0"),
   lotNumber: optionalText,
-  binId: uuid.optional().nullable(),
+  binId: optionalRef,
   notes: optionalText,
   idempotencyKey: z.string().trim().min(8).max(100),
 });
@@ -148,21 +153,21 @@ export const itemInput = z.object({
   uom: z.string().trim().min(1).max(10).default("ea"),
   standardCost: money,
   listPrice: money.optional().nullable(),
-  preferredSupplierId: uuid.optional().nullable(),
+  preferredSupplierId: optionalRef,
   leadTimeDays: z.coerce.number().int().min(0).max(365),
   reorderPoint: qty,
   safetyStock: qty,
   minOrderQty: positiveQty,
   tracking: z.enum(["none", "lot", "serial"]),
   shelfLifeDays: z.coerce.number().int().positive().max(3650).optional().nullable(),
-  defaultWarehouseId: uuid.optional().nullable(),
+  defaultWarehouseId: optionalRef,
   lifecycleStatus: z.enum(["draft", "active", "hold", "obsolete"]).default("active"),
 });
 
 export const miscReceiptInput = z.object({
   itemId: uuid,
   warehouseId: uuid,
-  binId: uuid.optional().nullable(),
+  binId: optionalRef,
   quantity: positiveQty,
   lotNumber: optionalText,
   expiresOn: isoDate.optional().nullable(),
@@ -175,8 +180,8 @@ export const miscReceiptInput = z.object({
 export const miscIssueInput = z.object({
   itemId: uuid,
   warehouseId: uuid,
-  binId: uuid.optional().nullable(),
-  lotId: uuid.optional().nullable(),
+  binId: optionalRef,
+  lotId: optionalRef,
   quantity: positiveQty,
   reason: z.string().trim().min(3, "Give a reason").max(200),
   idempotencyKey: optionalText,
@@ -185,10 +190,10 @@ export const miscIssueInput = z.object({
 export const transferInput = z.object({
   itemId: uuid,
   fromWarehouseId: uuid,
-  fromBinId: uuid.optional().nullable(),
-  lotId: uuid.optional().nullable(),
+  fromBinId: optionalRef,
+  lotId: optionalRef,
   toWarehouseId: uuid,
-  toBinId: uuid.optional().nullable(),
+  toBinId: optionalRef,
   quantity: positiveQty,
   reason: optionalText,
   idempotencyKey: optionalText,
@@ -197,8 +202,8 @@ export const transferInput = z.object({
 export const countInput = z.object({
   itemId: uuid,
   warehouseId: uuid,
-  binId: uuid.optional().nullable(),
-  lotId: uuid.optional().nullable(),
+  binId: optionalRef,
+  lotId: optionalRef,
   countedQuantity: qty,
   reason: z.string().trim().min(3, "Give a reason").max(200),
   idempotencyKey: optionalText,
@@ -210,15 +215,15 @@ export const qualityEventInput = z.object({
   description: optionalText,
   severity: z.enum(["low", "medium", "high", "critical"]),
   source: z.enum(["incoming", "in_process", "final", "customer", "internal"]).default("internal"),
-  itemId: uuid.optional().nullable(),
-  lotId: uuid.optional().nullable(),
-  workOrderId: uuid.optional().nullable(),
-  purchaseOrderId: uuid.optional().nullable(),
-  salesOrderId: uuid.optional().nullable(),
-  supplierId: uuid.optional().nullable(),
-  customerId: uuid.optional().nullable(),
+  itemId: optionalRef,
+  lotId: optionalRef,
+  workOrderId: optionalRef,
+  purchaseOrderId: optionalRef,
+  salesOrderId: optionalRef,
+  supplierId: optionalRef,
+  customerId: optionalRef,
   quantityAffected: qty.optional().nullable(),
-  ownerId: uuid.optional().nullable(),
+  ownerId: optionalRef,
   dueDate: isoDate.optional().nullable(),
   placeHold: z.boolean().optional(),
   holdReason: optionalText,
@@ -227,7 +232,7 @@ export const qualityEventInput = z.object({
 export const holdInput = z.object({
   lotId: uuid,
   reason: z.string().trim().min(5, "Document the reason (at least 5 characters)").max(500),
-  qualityEventId: uuid.optional().nullable(),
+  qualityEventId: optionalRef,
 });
 
 export const releaseHoldInput = z.object({
@@ -244,19 +249,19 @@ export const updateEventInput = z.object({
 });
 
 export const capaInput = z.object({
-  qualityEventId: uuid.optional().nullable(),
+  qualityEventId: optionalRef,
   actionType: z.enum(["corrective", "preventive"]),
   description: z.string().trim().min(5).max(1000),
-  ownerId: uuid.optional().nullable(),
+  ownerId: optionalRef,
   dueDate: isoDate,
 });
 
 export const inspectionInput = z.object({
   inspectionType: z.enum(["incoming", "in_process", "final"]),
   itemId: uuid,
-  lotId: uuid.optional().nullable(),
-  purchaseOrderId: uuid.optional().nullable(),
-  workOrderId: uuid.optional().nullable(),
+  lotId: optionalRef,
+  purchaseOrderId: optionalRef,
+  workOrderId: optionalRef,
   quantityInspected: qty.refine((v) => Number(v) > 0, "Must be greater than zero"),
   quantityRejected: qty.default("0"),
   result: z.enum(["pass", "fail"]),
@@ -294,7 +299,7 @@ export const ecoInput = z.object({
 
 export const mrpRunInput = z.object({
   horizonDays: z.coerce.number().int().min(7).max(365).default(90),
-  siteId: uuid.optional().nullable(),
+  siteId: optionalRef,
 });
 
 export const orgSettingsInput = z.object({
