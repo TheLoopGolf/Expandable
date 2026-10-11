@@ -135,7 +135,7 @@ export function DataTable<T>({
 
   const filterIds = useMemo(() => new Set(filters.map((f) => f.id)), [filters]);
   const cols = useMemo(
-    () => columns.map((c) => (c.id && filterIds.has(c.id)) || ("accessorKey" in c && filterIds.has(String(c.accessorKey))) ? { ...c, filterFn: equalsOrIn as FilterFn<T> } : c),
+    () => columns.map((c) => (c.id && filterIds.has(c.id)) || ("accessorKey" in c && filterIds.has(String(c.accessorKey))) ? { ...c, filterFn: c.filterFn ?? (equalsOrIn as FilterFn<T>) } : c),
     [columns, filterIds],
   );
 

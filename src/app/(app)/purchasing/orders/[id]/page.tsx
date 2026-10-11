@@ -44,7 +44,7 @@ export default async function PurchaseOrderPage({ params }: { params: Promise<{ 
         actions={
           <>
             {po.status === "draft" && can("purchasing.approve") && (
-              <ActionButton action={() => approvePurchaseOrderAction(po.id)} confirm={{ title: `Approve ${po.po_number}?`, description: `Commits ${formatCurrency(total, { cents: true })} with ${po.supplier}. Approved orders can be received.`, confirmLabel: "Approve" }}>
+              <ActionButton action={approvePurchaseOrderAction.bind(null, po.id)} confirm={{ title: `Approve ${po.po_number}?`, description: `Commits ${formatCurrency(total, { cents: true })} with ${po.supplier}. Approved orders can be received.`, confirmLabel: "Approve" }}>
                 Approve
               </ActionButton>
             )}
@@ -52,17 +52,17 @@ export default async function PurchaseOrderPage({ params }: { params: Promise<{ 
               <ReceiveDialog poId={po.id} poNumber={po.po_number} lines={receivable} bins={bins} />
             )}
             {po.status === "partially_received" && can("purchasing.approve") && (
-              <ReasonActionButton title={`Short-close ${po.po_number}`} description="The remaining open quantity will no longer be expected." action={(r) => closePurchaseOrderAction(po.id, r)}>
+              <ReasonActionButton title={`Short-close ${po.po_number}`} description="The remaining open quantity will no longer be expected." action={closePurchaseOrderAction.bind(null, po.id)}>
                 Short-close
               </ReasonActionButton>
             )}
             {["draft", "approved"].includes(po.status) && can("purchasing.approve") && (
-              <ReasonActionButton title={`Cancel ${po.po_number}`} action={(r) => cancelPurchaseOrderAction(po.id, r)} confirmLabel="Cancel order" destructive>
+              <ReasonActionButton title={`Cancel ${po.po_number}`} action={cancelPurchaseOrderAction.bind(null, po.id)} confirmLabel="Cancel order" destructive>
                 Cancel
               </ReasonActionButton>
             )}
             {can("finance.manage") && receivedCost - billed > 0.01 && (
-              <ActionButton variant="outline" action={() => createSupplierBillAction(po.id)} confirm={{ title: "Record supplier bill", description: `Creates an AP bill for ${formatCurrency(receivedCost - billed, { cents: true })} of received, unbilled value.` }}>
+              <ActionButton variant="outline" action={createSupplierBillAction.bind(null, po.id)} confirm={{ title: "Record supplier bill", description: `Creates an AP bill for ${formatCurrency(receivedCost - billed, { cents: true })} of received, unbilled value.` }}>
                 Record bill
               </ActionButton>
             )}

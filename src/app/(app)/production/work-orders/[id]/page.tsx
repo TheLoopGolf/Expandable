@@ -65,33 +65,33 @@ export default async function WorkOrderPage({ params }: { params: Promise<{ id: 
         actions={
           <>
             {wo.status === "draft" && can("production.manage") && (
-              <ActionButton action={() => releaseWorkOrderAction(wo.id)} confirm={{ title: `Release ${wo.wo_number}?`, description: "Released orders freeze their BOM snapshot for execution and allocate available material.", confirmLabel: "Release" }}>
+              <ActionButton action={releaseWorkOrderAction.bind(null, wo.id)} confirm={{ title: `Release ${wo.wo_number}?`, description: "Released orders freeze their BOM snapshot for execution and allocate available material.", confirmLabel: "Release" }}>
                 Release
               </ActionButton>
             )}
             {executable && can("production.execute") && toIssue.length > 0 && <IssueDialog woId={wo.id} woNumber={wo.wo_number} lines={toIssue.map((r) => ({ materialId: r.materialId, lineNo: r.lineNo, itemId: r.itemId, sku: r.sku, uom: r.uom, tracking: r.tracking, remaining: toNum(r.remaining), availableForOrder: toNum(r.availableForOrder), heldOnHand: toNum(r.heldOnHand) }))} lots={lots} today={user.today} />}
             {executable && can("production.execute") && remaining > 0 && <RecordProductionDialog woId={wo.id} woNumber={wo.wo_number} remaining={remaining} tracking={wo.tracking} bins={bins} maxByMaterial={Math.max(0, supported)} />}
             {executable && can("production.manage") && (
-              <ReasonActionButton title={`Put ${wo.wo_number} on hold`} description="Holds block material issue and output until resumed." action={(r) => holdWorkOrderAction(wo.id, r)} confirmLabel="Place on hold">
+              <ReasonActionButton title={`Put ${wo.wo_number} on hold`} description="Holds block material issue and output until resumed." action={holdWorkOrderAction.bind(null, wo.id)} confirmLabel="Place on hold">
                 Hold
               </ReasonActionButton>
             )}
-            {wo.status === "on_hold" && can("production.manage") && <ActionButton action={() => resumeWorkOrderAction(wo.id)}>Resume</ActionButton>}
+            {wo.status === "on_hold" && can("production.manage") && <ActionButton action={resumeWorkOrderAction.bind(null, wo.id)}>Resume</ActionButton>}
             {open && can("production.manage") && wo.status !== "on_hold" && (
-              <ActionButton variant="ghost" action={() => reallocateWorkOrderAction(wo.id)}>Re-allocate</ActionButton>
+              <ActionButton variant="ghost" action={reallocateWorkOrderAction.bind(null, wo.id)}>Re-allocate</ActionButton>
             )}
             {wo.status === "completed" && can("production.manage") && (
-              <ActionButton action={() => closeWorkOrderAction(wo.id)} confirm={{ title: `Close ${wo.wo_number}?`, description: "Posts any remaining work-in-process balance to production variance. Closed orders cannot be reopened." }}>
+              <ActionButton action={closeWorkOrderAction.bind(null, wo.id)} confirm={{ title: `Close ${wo.wo_number}?`, description: "Posts any remaining work-in-process balance to production variance. Closed orders cannot be reopened." }}>
                 Close
               </ActionButton>
             )}
             {["in_progress", "released"].includes(wo.status) && can("production.manage") && (completed > 0 || issues.length > 0) && (
-              <ReasonActionButton title={`Short-close ${wo.wo_number}`} description={`Closes the order with ${formatNumber(remaining)} units not produced and posts the WIP variance.`} action={(r) => closeWorkOrderAction(wo.id, r)}>
+              <ReasonActionButton title={`Short-close ${wo.wo_number}`} description={`Closes the order with ${formatNumber(remaining)} units not produced and posts the WIP variance.`} action={closeWorkOrderAction.bind(null, wo.id)}>
                 Short-close
               </ReasonActionButton>
             )}
             {["draft", "released", "on_hold"].includes(wo.status) && issues.length === 0 && can("production.manage") && (
-              <ReasonActionButton title={`Cancel ${wo.wo_number}`} action={(r) => cancelWorkOrderAction(wo.id, r)} confirmLabel="Cancel order" destructive>
+              <ReasonActionButton title={`Cancel ${wo.wo_number}`} action={cancelWorkOrderAction.bind(null, wo.id)} confirmLabel="Cancel order" destructive>
                 Cancel
               </ReasonActionButton>
             )}
@@ -171,7 +171,7 @@ export default async function WorkOrderPage({ params }: { params: Promise<{ id: 
                   <StatusBadge key="s" status={o.status} />
                 ),
                 o.status !== "done" && executable && can("production.execute") ? (
-                  <ActionButton key="a" size="xs" variant="outline" action={() => completeOperationAction(o.id)}>Complete</ActionButton>
+                  <ActionButton key="a" size="xs" variant="outline" action={completeOperationAction.bind(null, o.id)}>Complete</ActionButton>
                 ) : null,
               ])}
             />

@@ -39,14 +39,14 @@ export default async function SalesOrderPage({ params }: { params: Promise<{ id:
         description={`${so.customer}${so.customer_po ? ` · PO ${so.customer_po}` : ""} · ships from ${so.wh} (${so.site})`}
         actions={
           <>
-            {so.status === "draft" && can("sales.manage") && <ActionButton action={() => confirmSalesOrderAction(so.id)}>Confirm order</ActionButton>}
+            {so.status === "draft" && can("sales.manage") && <ActionButton action={confirmSalesOrderAction.bind(null, so.id)}>Confirm order</ActionButton>}
             {["confirmed", "partially_shipped"].includes(so.status) && can("sales.ship") && (
               <>
-                <ActionButton variant="outline" action={() => reserveSalesOrderAction(so.id)}>
+                <ActionButton variant="outline" action={reserveSalesOrderAction.bind(null, so.id)}>
                   Reserve stock
                 </ActionButton>
                 {reservedAny && (
-                  <ActionButton variant="ghost" action={() => releaseReservationsAction(so.id)}>
+                  <ActionButton variant="ghost" action={releaseReservationsAction.bind(null, so.id)}>
                     Release reservations
                   </ActionButton>
                 )}
@@ -54,17 +54,17 @@ export default async function SalesOrderPage({ params }: { params: Promise<{ id:
               </>
             )}
             {uninvoiced && can("finance.manage") && (
-              <ActionButton variant="outline" action={() => createInvoiceAction(so.id)}>
+              <ActionButton variant="outline" action={createInvoiceAction.bind(null, so.id)}>
                 Invoice shipped qty
               </ActionButton>
             )}
             {so.status === "partially_shipped" && can("sales.manage") && (
-              <ReasonActionButton title={`Close ${so.so_number}`} description="Closes the unshipped remainder and releases its reservations." action={(r) => closeSalesOrderAction(so.id, r)}>
+              <ReasonActionButton title={`Close ${so.so_number}`} description="Closes the unshipped remainder and releases its reservations." action={closeSalesOrderAction.bind(null, so.id)}>
                 Close remainder
               </ReasonActionButton>
             )}
             {["draft", "confirmed", "on_hold"].includes(so.status) && can("sales.manage") && (
-              <ReasonActionButton title={`Cancel ${so.so_number}`} action={(r) => cancelSalesOrderAction(so.id, r)} confirmLabel="Cancel order" destructive>
+              <ReasonActionButton title={`Cancel ${so.so_number}`} action={cancelSalesOrderAction.bind(null, so.id)} confirmLabel="Cancel order" destructive>
                 Cancel
               </ReasonActionButton>
             )}
