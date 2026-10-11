@@ -49,15 +49,15 @@ export function startOfDayInstant(d: IsoDate, timeZone: string): Date {
 /** A movable clock shared by all seed contexts; advances a little per action. */
 export class SeedClock {
   private current = new Date();
-  set(instant: Date) {
+  private ceiling: number | null = null;
+  set(instant: Date, ceiling?: Date) {
     this.current = new Date(instant);
+    this.ceiling = ceiling ? ceiling.getTime() : null;
   }
-  tick(minutes = 2) {
-    this.current = new Date(this.current.getTime() + minutes * 60_000);
-    return this.current;
-  }
+  /** Advance a few seconds per call so events keep their order; never pass the ceiling. */
   now = () => {
-    this.tick(1);
+    const next = this.current.getTime() + 4_000;
+    this.current = new Date(this.ceiling !== null ? Math.min(next, this.ceiling) : next);
     return new Date(this.current);
   };
 }

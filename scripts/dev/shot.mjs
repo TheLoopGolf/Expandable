@@ -1,0 +1,21 @@
+// Usage: node scripts/dev/shot.mjs <path> <outfile> [--dark] [--mobile] [--persona=Name]
+import { chromium } from "@playwright/test";
+const [, , path = "/dashboard", out = "shot.png", ...flags] = process.argv;
+const dark = flags.includes("--dark");
+const mobile = flags.includes("--mobile");
+const persona = (flags.find((f) => f.startsWith("--persona=")) ?? "--persona=Avery Chen").split("=")[1];
+const full = !flags.includes("--viewport");
+const browser = await chromium.launch();
+const ctx = await browser.newContext({ viewport: mobile ? { width: 390, height: 844 } : { width: 1536, height: 960 }, colorScheme: dark ? "dark" : "light", deviceScaleFactor: 1 });
+const page = await ctx.newPage();
+const errors = [];
+page.on("pageerror", (e) => errors.push(String(e)));
+page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+await page.goto("http://localhost:3000/login", { waitUntil: "networkidle", timeout: 120000 });
+await page.getByRole("button", { name: new RegExp(persona) }).first().click();
+await page.waitForURL(/dashboard/, { timeout: 120000 });
+if (path !== "/dashboard") await page.goto("http://localhost:3000" + path, { waitUntil: "networkidle", timeout: 120000 });
+await page.waitForTimeout(1200);
+await page.screenshot({ path: out, fullPage: full });
+console.log("errors:", errors.slice(0, 10));
+await browser.close();

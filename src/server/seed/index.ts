@@ -42,7 +42,7 @@ export async function seedDemo(db: Database, opts: SeedOptions = {}) {
   // Today's activity happens shortly before the real current time (never in the future).
   const dayStart = startOfDayInstant(today, NORTHSTAR.timezone).getTime();
   const base = opts.today ? dayStart + 8 * 3_600_000 : Math.max(dayStart + 60_000, realNow.getTime() - 100 * 60_000);
-  clock.set(new Date(base));
+  clock.set(new Date(base), opts.today ? undefined : new Date(realNow.getTime() - 60_000));
   await todayScenarios(db, world, rng, today, log);
 
   if (!opts.skipSecondTenant) {
