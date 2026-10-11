@@ -20,13 +20,29 @@ export interface ShippableLine {
   reserved: number;
 }
 
-export function ShipDialog({ soId, soNumber, lines, canInvoice }: { soId: string; soNumber: string; lines: ShippableLine[]; canInvoice: boolean }) {
+export function ShipDialog({
+  soId,
+  soNumber,
+  lines,
+  canInvoice,
+  autoInvoice,
+  allowPartial,
+}: {
+  soId: string;
+  soNumber: string;
+  lines: ShippableLine[];
+  canInvoice: boolean;
+  /** Organization setting: draft an invoice for every shipment. */
+  autoInvoice: boolean;
+  /** Organization setting: lines may ship less than their open quantity. */
+  allowPartial: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const [key, setKey] = useState("");
   const [qty, setQty] = useState<Record<string, string>>({});
   const [carrier, setCarrier] = useState("");
   const [tracking, setTracking] = useState("");
-  const [invoice, setInvoice] = useState(canInvoice);
+  const [invoice, setInvoice] = useState(autoInvoice || canInvoice);
   const [error, setError] = useState<string | null>(null);
   const { pending, run } = useServerAction();
 
@@ -46,10 +62,11 @@ export function ShipDialog({ soId, soNumber, lines, canInvoice }: { soId: string
       const q = Number(qty[l.id] || 0);
       if (Number.isNaN(q) || q < 0) return setError(`Line ${l.line_no}: enter a valid quantity`);
       if (q > l.open) return setError(`Line ${l.line_no}: only ${formatNumber(l.open)} open`);
+      if (!allowPartial && q > 0 && q !== l.open) return setError(`Line ${l.line_no}: partial shipments are disabled; ship all ${formatNumber(l.open)} or none`);
     }
     if (payload.length === 0) return setError("Enter a quantity to ship on at least one line.");
     setError(null);
-    run(() => shipSalesOrderAction({ salesOrderId: soId, idempotencyKey: key, carrier, trackingNumber: tracking, createInvoice: invoice && canInvoice, lines: payload }), () => setOpen(false));
+    run(() => shipSalesOrderAction({ salesOrderId: soId, idempotencyKey: key, carrier, trackingNumber: tracking, createInvoice: canInvoice ? invoice : undefined, lines: payload }), () => setOpen(false));
   };
 
   return (
@@ -63,7 +80,8 @@ export function ShipDialog({ soId, soNumber, lines, canInvoice }: { soId: string
         <DialogHeader>
           <DialogTitle>Confirm shipment for {soNumber}</DialogTitle>
           <DialogDescription>
-            Stock is consumed first-expiring-first and never from lots on hold. Partial quantities leave the remainder open on the order.
+            Stock is consumed first-expiring-first and never from lots on hold.{" "}
+            {allowPartial ? "Partial quantities leave the remainder open on the order." : "Partial shipments are disabled for this organization: ship each line in full."}
           </DialogDescription>
         </DialogHeader>
         <table className="w-full text-[13px]">
@@ -106,6 +124,9 @@ export function ShipDialog({ soId, soNumber, lines, canInvoice }: { soId: string
             <Checkbox id="invoice" checked={invoice} onCheckedChange={(v) => setInvoice(v === true)} />
             <Label htmlFor="invoice" className="font-normal">Create a draft invoice for the shipped quantity</Label>
           </div>
+        )}
+        {!canInvoice && autoInvoice && (
+          <p className="text-xs text-muted-foreground">A draft invoice is created automatically for the shipped quantity (organization setting).</p>
         )}
         {error && <p className="text-sm text-destructive">{error}</p>}
         <DialogFooter>

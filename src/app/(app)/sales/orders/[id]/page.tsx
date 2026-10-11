@@ -50,7 +50,14 @@ export default async function SalesOrderPage({ params }: { params: Promise<{ id:
                     Release reservations
                   </ActionButton>
                 )}
-                {shippable.length > 0 && <ShipDialog soId={so.id} soNumber={so.so_number} lines={shippable} canInvoice={can("finance.manage")} />}
+                {shippable.length > 0 && <ShipDialog
+                    soId={so.id}
+                    soNumber={so.so_number}
+                    lines={shippable}
+                    canInvoice={can("finance.manage")}
+                    autoInvoice={user.org.features.autoInvoiceOnShipment}
+                    allowPartial={user.org.features.allowPartialShipments}
+                  />}
               </>
             )}
             {uninvoiced && can("finance.manage") && (

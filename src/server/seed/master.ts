@@ -75,7 +75,7 @@ export async function createNorthstarMaster(db: Database, clock: SeedClock, bomR
       NORTHSTAR.name,
       NORTHSTAR.slug,
       NORTHSTAR.timezone,
-      JSON.stringify({ features: { allowPartialShipments: true, mrpIncludeDraftSupply: true, autoInvoiceOnShipment: false, requireIncomingInspection: false } }),
+      JSON.stringify({ features: { allowPartialShipments: true, mrpIncludeDraftSupply: true, autoInvoiceOnShipment: true, requireIncomingInspection: false } }),
     ],
   );
   const orgRef = { id: org.id, name: NORTHSTAR.name, timezone: NORTHSTAR.timezone };

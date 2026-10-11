@@ -199,7 +199,6 @@ export async function todayScenarios(db: Database, world: World, rng: Rng, today
         salesOrderId: l.so_id,
         idempotencyKey: idemKey("sh"),
         carrier: "Lakes Parcel",
-        createInvoice: true,
         lines: [{ lineId: l.line_id, quantity: String(qty) }],
       });
       partials++;

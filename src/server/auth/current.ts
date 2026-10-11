@@ -3,6 +3,7 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 import { getDb } from "../db";
 import type { ServiceContext } from "../context";
+import { resolveFeatures, type Features } from "../services/features";
 import { config } from "../config";
 import { isRangeKey, resolveRange, todayInTz, type DateRange, type RangeKey } from "@/lib/dates";
 import { ROLES, isRoleKey, type Permission, type RoleKey } from "@/lib/permissions";
@@ -17,7 +18,7 @@ export interface Membership {
 export interface CurrentUser {
   ctx: ServiceContext;
   user: { id: string; name: string; email: string; title: string | null; role: RoleKey; roleName: string };
-  org: { id: string; name: string; timezone: string; isDemo: boolean; seededFor: string | null; features: Record<string, boolean> };
+  org: { id: string; name: string; timezone: string; isDemo: boolean; seededFor: string | null; features: Features };
   memberships: Membership[];
   sites: { id: string; code: string; name: string }[];
   siteId: string | null;
@@ -94,7 +95,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
       timezone: active.timezone,
       isDemo: active.is_demo,
       seededFor: typeof settings.seededFor === "string" ? settings.seededFor : null,
-      features: (settings.features as Record<string, boolean>) ?? {},
+      features: resolveFeatures(settings.features),
     },
     memberships: memberships.map((m) => ({ orgId: m.organization_id, orgName: m.name, role: (isRoleKey(m.role_key) ? m.role_key : "viewer") as RoleKey })),
     sites,

@@ -287,7 +287,6 @@ async function shipOrders(db: Database, world: World, rng: Rng, state: SimState,
       idempotencyKey: idemKey("sh"),
       carrier: rng.pick(["Northbound Freight", "Lakes Parcel", "Prairie LTL", "Customer pickup"]),
       trackingNumber: `TRK${rng.int(100000000, 999999999)}`,
-      createInvoice: true,
       lines: shipLines,
     });
     if (res.invoice) {

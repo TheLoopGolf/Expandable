@@ -6,6 +6,7 @@ import { ConflictError, NotFoundError, ValidationError } from "../errors";
 import { addDays } from "@/lib/dates";
 import { add, cmp, dec, mul, neg, sub, toStr } from "@/lib/decimal";
 import { recordAudit } from "./audit";
+import { orgFeatures } from "./features";
 import { withIdempotency } from "./idempotency";
 import { postJournal } from "./journal";
 import { nextNumber } from "./numbering";
@@ -135,6 +136,7 @@ export async function receivePurchaseOrder(db: Database, ctx: ServiceContext, ra
         throw new ConflictError(`${po.po_number} is ${po.status.replace("_", " ")}; only approved orders can be received.`);
       }
       const wh = await loadWarehouse(tx, ctx, po.warehouse_id);
+      const features = await orgFeatures(tx, ctx);
       const seen = new Set<string>();
       const receipts: { number: string; sku: string; quantity: string; lotNumber: string | null }[] = [];
       let inventoryValue = 0n;
@@ -174,7 +176,8 @@ export async function receivePurchaseOrder(db: Database, ctx: ServiceContext, ra
             originRef: po.po_number,
             supplierId: po.supplier_id,
             expiresOn: line.expiresOn ?? (item.shelf_life_days ? addDays(today(ctx), item.shelf_life_days) : null),
-            status: line.quarantine ? "quarantine" : "available",
+            // With incoming inspection required, lot-tracked receipts always start in quarantine.
+            status: features.requireIncomingInspection || line.quarantine ? "quarantine" : "available",
           });
           lotId = lot.id;
           lotNumber = lot.lot_number;

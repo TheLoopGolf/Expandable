@@ -6,6 +6,7 @@ import { ConflictError, NotFoundError, ValidationError } from "../errors";
 import { addDays } from "@/lib/dates";
 import { add, cmp, dec, max, min, mul, neg, sub, toStr, type Dec } from "@/lib/decimal";
 import { recordAudit } from "./audit";
+import { orgFeatures } from "./features";
 import { withIdempotency } from "./idempotency";
 import { postJournal } from "./journal";
 import { nextNumber } from "./numbering";
@@ -202,6 +203,9 @@ export async function shipSalesOrder(db: Database, ctx: ServiceContext, raw: z.i
       if (!["confirmed", "partially_shipped"].includes(so.status)) throw new ConflictError(`${so.so_number} is ${so.status.replace("_", " ")} and cannot be shipped.`);
       const lines = await loadSoLines(tx, so.id);
       const byId = new Map(lines.map((l) => [l.id, l]));
+      const features = await orgFeatures(tx, ctx);
+      // Auto-invoicing is organization policy; asking for an invoice explicitly is a finance action.
+      if (input.createInvoice && !features.autoInvoiceOnShipment) authorize(ctx, "finance.manage");
       const number = await nextNumber(tx, ctx.orgId, "SH");
       const [shipment] = await tx.query<{ id: string }>(
         `insert into shipments (organization_id, shipment_number, sales_order_id, warehouse_id, carrier, tracking_number, ship_date, shipped_at, shipped_by)
@@ -220,6 +224,9 @@ export async function shipSalesOrder(db: Database, ctx: ServiceContext, raw: z.i
         const q = dec(req.quantity);
         const open = sub(dec(l.quantity_ordered), dec(l.quantity_shipped));
         if (cmp(q, open) > 0) throw new ValidationError(`Line ${l.line_no} (${l.sku}): cannot ship ${toStr(q, 2)}; only ${toStr(open, 2)} open.`);
+        if (!features.allowPartialShipments && cmp(q, open) !== 0) {
+          throw new ValidationError(`Line ${l.line_no} (${l.sku}): partial shipments are disabled in settings; ship the full ${toStr(open, 2)} open.`);
+        }
         const own = (await getReservation(tx, ctx, "sales_order_line", l.id))?.quantity ?? 0n;
         const avail = await availability(tx, ctx, l.item_id, so.warehouse_id);
         const forThis = add(avail.available, own);
@@ -273,7 +280,7 @@ export async function shipSalesOrder(db: Database, ctx: ServiceContext, raw: z.i
         siteId: so.site_id,
       });
       let invoice: { id: string; number: string } | null = null;
-      if (input.createInvoice) invoice = await createInvoiceTx(tx, ctx, so.id, shipment.id);
+      if (input.createInvoice ?? features.autoInvoiceOnShipment) invoice = await createInvoiceTx(tx, ctx, so.id, shipment.id);
       return { id: so.id, number: so.so_number, status: newStatus, shipmentId: shipment.id, shipmentNumber: number, invoice };
     }),
   );

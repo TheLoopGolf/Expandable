@@ -49,7 +49,7 @@ export default async function PurchaseOrderPage({ params }: { params: Promise<{ 
               </ActionButton>
             )}
             {["approved", "partially_received"].includes(po.status) && can("purchasing.receive") && receivable.length > 0 && (
-              <ReceiveDialog poId={po.id} poNumber={po.po_number} lines={receivable} bins={bins} />
+              <ReceiveDialog poId={po.id} poNumber={po.po_number} lines={receivable} bins={bins} defaultQuarantine={user.org.features.requireIncomingInspection} />
             )}
             {po.status === "partially_received" && can("purchasing.approve") && (
               <ReasonActionButton title={`Short-close ${po.po_number}`} description="The remaining open quantity will no longer be expected." action={closePurchaseOrderAction.bind(null, po.id)}>

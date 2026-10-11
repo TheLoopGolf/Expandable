@@ -155,7 +155,7 @@ export function ReceiveDialog({ poId, poNumber, lines, bins, defaultQuarantine }
                     </td>
                     <td className="px-2 py-2 text-center">
                       {l.tracking !== "none" && (
-                        <Checkbox checked={st.quarantine} onCheckedChange={(v) => update(l.id, { quarantine: v === true })} aria-label={`Quarantine ${l.sku} pending inspection`} />
+                        <Checkbox checked={st.quarantine} disabled={defaultQuarantine} onCheckedChange={(v) => update(l.id, { quarantine: v === true })} aria-label={`Quarantine ${l.sku} pending inspection`} />
                       )}
                     </td>
                   </tr>

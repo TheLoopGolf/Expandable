@@ -5,14 +5,9 @@ import { authorize, type ServiceContext } from "../context";
 import { ConflictError, NotFoundError, ValidationError } from "../errors";
 import { ROLE_KEYS } from "@/lib/permissions";
 import { recordAudit } from "./audit";
+import { FEATURE_FLAGS } from "./features";
 
-export const FEATURE_FLAGS = {
-  requireIncomingInspection: "Quarantine new purchase lots until incoming inspection passes",
-  autoInvoiceOnShipment: "Draft an invoice automatically when a shipment is confirmed",
-  allowPartialShipments: "Allow shipping part of a sales order line",
-  mrpIncludeDraftSupply: "Count draft POs and work orders as supply in MRP",
-} as const;
-export type FeatureFlag = keyof typeof FEATURE_FLAGS;
+export { FEATURE_FLAGS, type FeatureFlag } from "./features";
 
 
 export async function updateOrganization(db: Database, ctx: ServiceContext, raw: z.input<typeof orgSettingsInput>) {

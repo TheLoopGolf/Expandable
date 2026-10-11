@@ -189,10 +189,14 @@ describe("Workflow 3 — sales order to fulfillment", () => {
       shipSalesOrder(db, t.users.warehouse.ctx, { salesOrderId: so.id, idempotencyKey: key(), lines: [{ lineId: line.id, quantity: "13" }] }),
     ).rejects.toThrow(/only 12\.00 open/);
 
+    // Asking for an invoice explicitly is a finance permission unless the org auto-invoices.
+    await expect(
+      shipSalesOrder(db, t.users.warehouse.ctx, { salesOrderId: so.id, idempotencyKey: key(), createInvoice: true, lines: [{ lineId: line.id, quantity: "5" }] }),
+    ).rejects.toThrow(/not allowed/);
+    await db.query(`update organizations set settings = jsonb_set(coalesce(settings, '{}'::jsonb), '{features}', '{"autoInvoiceOnShipment": true}'::jsonb) where id = $1`, [t.orgId]);
     const shipped = await shipSalesOrder(db, t.users.warehouse.ctx, {
       salesOrderId: so.id,
       idempotencyKey: key(),
-      createInvoice: true,
       lines: [{ lineId: line.id, quantity: "5" }],
     });
     expect(shipped.status).toBe("partially_shipped");

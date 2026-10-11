@@ -6,8 +6,13 @@ import { ChartCard, ChartTooltip } from "./chart-card";
 
 type Fmt = "currency" | "number" | "percent";
 const fmt = (v: number, f: Fmt) => (f === "currency" ? formatCurrency(v) : f === "percent" ? formatPercent(v) : formatNumber(v, 1));
-const axisFmt = (v: number, f: Fmt) => (f === "currency" ? `$${formatCompact(v)}` : f === "percent" ? `${v}%` : formatCompact(v));
+const axisFmt = (v: number, f: Fmt) => (f === "currency" ? `$${formatCompact(v)}` : f === "percent" ? `${v}%` : Math.abs(v) >= 1000 ? formatCompact(v) : formatNumber(v, 1));
 const tick = { fill: "var(--chart-muted)", fontSize: 11 };
+
+/** Count-like data (all integers) gets integer ticks so the axis never shows "1, 2, 2". */
+function integerOnly(data: Record<string, string | number | null>[], series: Series[]) {
+  return data.every((d) => series.every((s) => d[s.key] === null || d[s.key] === undefined || Number.isInteger(Number(d[s.key]))));
+}
 
 export interface Series {
   key: string;
@@ -47,7 +52,7 @@ export function ColumnChart({
         <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} barGap={2} barCategoryGap="24%">
           <CartesianGrid vertical={false} stroke="var(--chart-grid)" />
           <XAxis dataKey={xKey} tick={tick} tickLine={false} axisLine={{ stroke: "var(--chart-axis)" }} interval="preserveStartEnd" minTickGap={10} />
-          <YAxis tick={tick} tickLine={false} axisLine={false} width={50} tickFormatter={(v: number) => axisFmt(v, format)} />
+          <YAxis tick={tick} tickLine={false} axisLine={false} width={50} allowDecimals={format !== "number" || !integerOnly(data, series)} tickFormatter={(v: number) => axisFmt(v, format)} />
           <Tooltip
             cursor={{ fill: "var(--muted)", opacity: 0.6 }}
             content={({ active, payload, label }) => (
@@ -102,7 +107,7 @@ export function TrendLineChart({
         <LineChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
           <CartesianGrid vertical={false} stroke="var(--chart-grid)" />
           <XAxis dataKey={xKey} tick={tick} tickLine={false} axisLine={{ stroke: "var(--chart-axis)" }} interval="preserveStartEnd" minTickGap={10} />
-          <YAxis tick={tick} tickLine={false} axisLine={false} width={44} tickFormatter={(v: number) => axisFmt(v, format)} domain={format === "percent" ? [0, 100] : undefined} />
+          <YAxis tick={tick} tickLine={false} axisLine={false} width={44} allowDecimals={format !== "number" || !integerOnly(data, series)} tickFormatter={(v: number) => axisFmt(v, format)} domain={format === "percent" ? [0, 100] : undefined} />
           <Tooltip
             cursor={{ stroke: "var(--chart-axis)", strokeWidth: 1 }}
             content={({ active, payload, label }) => (

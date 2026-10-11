@@ -8,6 +8,7 @@ import { dec, toStr, type Dec } from "@/lib/decimal";
 import type { BomMap } from "@/lib/domain/bom";
 import { runMrp, type MrpDemand, type MrpItem, type MrpSupply } from "@/lib/domain/mrp";
 import { recordAudit } from "./audit";
+import { orgFeatures } from "./features";
 import { nextNumber } from "./numbering";
 import { createPurchaseOrderTx } from "./purchasing";
 import { createWorkOrderTx } from "./production";
@@ -33,6 +34,9 @@ export async function loadMrpInput(tx: Sql, ctx: ServiceContext, siteId?: string
     bomMap.set(r.item_id, list);
   }
   const whFilter = `($2::uuid is null or w.site_id = $2::uuid)`;
+  const { mrpIncludeDraftSupply } = await orgFeatures(tx, ctx);
+  const woStatuses = mrpIncludeDraftSupply ? `'draft','released','in_progress','on_hold'` : `'released','in_progress','on_hold'`;
+  const poStatuses = mrpIncludeDraftSupply ? `'draft','approved','partially_received'` : `'approved','partially_received'`;
   const onHandRows = await tx.query<{ item_id: string; qty: string }>(
     `select b.item_id, sum(b.qty_on_hand) as qty from inventory_balances b
      join warehouses w on w.id = b.warehouse_id
@@ -54,7 +58,7 @@ export async function loadMrpInput(tx: Sql, ctx: ServiceContext, siteId?: string
   const woMatRows = await tx.query<{ item_id: string; date: string; qty: string; ref: string; id: string }>(
     `select m.component_item_id as item_id, wo.planned_start as date, m.quantity_required - m.quantity_issued as qty, wo.wo_number as ref, wo.id
      from work_order_materials m join work_orders wo on wo.id = m.work_order_id join warehouses w on w.id = wo.material_warehouse_id
-     where wo.organization_id = $1 and ${whFilter} and wo.status in ('draft','released','in_progress','on_hold')
+     where wo.organization_id = $1 and ${whFilter} and wo.status in (${woStatuses})
        and m.quantity_issued < m.quantity_required`,
     [ctx.orgId, siteId ?? null],
   );
@@ -64,7 +68,7 @@ export async function loadMrpInput(tx: Sql, ctx: ServiceContext, siteId?: string
   const poRows = await tx.query<{ item_id: string; date: string; qty: string; ref: string; id: string }>(
     `select pol.item_id, pol.expected_date as date, pol.quantity_ordered - pol.quantity_received as qty, po.po_number as ref, po.id
      from purchase_order_lines pol join purchase_orders po on po.id = pol.purchase_order_id join warehouses w on w.id = po.warehouse_id
-     where po.organization_id = $1 and ${whFilter} and po.status in ('draft','approved','partially_received')
+     where po.organization_id = $1 and ${whFilter} and po.status in (${poStatuses})
        and pol.quantity_received < pol.quantity_ordered`,
     [ctx.orgId, siteId ?? null],
   );
@@ -72,7 +76,7 @@ export async function loadMrpInput(tx: Sql, ctx: ServiceContext, siteId?: string
   const woRows = await tx.query<{ item_id: string; date: string; qty: string; ref: string; id: string }>(
     `select wo.item_id, wo.due_date as date, wo.quantity_planned - wo.quantity_completed - wo.quantity_scrapped as qty, wo.wo_number as ref, wo.id
      from work_orders wo join warehouses w on w.id = wo.warehouse_id
-     where wo.organization_id = $1 and ${whFilter} and wo.status in ('draft','released','in_progress','on_hold')
+     where wo.organization_id = $1 and ${whFilter} and wo.status in (${woStatuses})
        and wo.quantity_planned > wo.quantity_completed + wo.quantity_scrapped`,
     [ctx.orgId, siteId ?? null],
   );

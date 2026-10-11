@@ -10,7 +10,8 @@ import { PasswordForm } from "./password-form";
 export const metadata: Metadata = { title: "Sign in" };
 export const dynamic = "force-dynamic";
 
-export default async function LoginPage() {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ reset?: string }> }) {
+  const { reset } = await searchParams;
   let personas: Persona[] = [];
   if (config.authMode === "demo") {
     const db = await getDb();
@@ -68,6 +69,11 @@ export default async function LoginPage() {
           </div>
           {config.authMode === "demo" ? (
             <>
+              {reset === "1" && (
+                <div role="status" className="mb-5 rounded-lg border border-success/30 bg-success/10 px-3.5 py-2.5 text-sm">
+                  Demo data was reset and regenerated. Choose a persona to continue.
+                </div>
+              )}
               <h2 className="text-2xl font-semibold tracking-tight">Choose a demo persona</h2>
               <p className="mt-1.5 text-sm text-muted-foreground">
                 Each persona has a different role and permissions. Permissions are enforced on the server for every action, not just
