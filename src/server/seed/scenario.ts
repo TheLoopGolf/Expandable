@@ -48,13 +48,27 @@ export async function todayScenarios(db: Database, world: World, rng: Rng, today
   });
 
   // Workflow 2 — kit with a two-component BOM: components on hand, a released WO for 10 with
-  // materials allocated, ready for issue and output recording.
+  // materials allocated, ready for issue and output recording. History depends on the time of
+  // day the seed runs, so top up whatever the simulation left short.
+  const stores = warehouses["MPL-STORES"].id;
+  const freeQty = async (itemId: string) =>
+    Math.max(0, Math.floor(Number(toStr((await db.transaction((tx) => availability(tx, ctx.riley, itemId, stores))).available))));
   await receiveStock(db, ctx.sam, {
     itemId: items["CASE-CAL"].id,
-    warehouseId: warehouses["MPL-STORES"].id,
+    warehouseId: stores,
     quantity: "30",
     reason: "Cycle-count found pallet in overflow location",
   });
+  const probesForKit = await freeQty(items["PROBE-REF"].id);
+  if (probesForKit < 10) {
+    await receiveStock(db, ctx.sam, {
+      itemId: items["PROBE-REF"].id,
+      warehouseId: stores,
+      quantity: String(12 - probesForKit),
+      lotNumber: `GPS-${yymmdd(addDays(today, -20))}-71`,
+      reason: "Probes returned from the calibration lab after re-certification",
+    });
+  }
   const kitWo = await createWorkOrder(db, ctx.riley, {
     itemId: items["FG-CALKIT"].id,
     quantity: "10",
@@ -124,8 +138,6 @@ export async function todayScenarios(db: Database, world: World, rng: Rng, today
   });
   // Size the kit order so usable (non-held) probes cannot cover it: it reads "blocked" until
   // quality releases the held lot. Sized from live availability so the scenario holds on any seed date.
-  const stores = warehouses["MPL-STORES"].id;
-  const freeQty = async (itemId: string) => Math.max(0, Math.floor(Number(toStr((await db.transaction((tx) => availability(tx, ctx.riley, itemId, stores))).available))));
   const probeFree = await freeQty(items["PROBE-REF"].id);
   const kitQty = probeFree + 6; // the held lot (40) covers the gap once released
   const caseFree = await freeQty(items["CASE-CAL"].id);
