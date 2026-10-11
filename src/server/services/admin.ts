@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { orgSettingsInput, memberInput } from "@/lib/validation";
 import type { Database } from "../db";
 import { authorize, type ServiceContext } from "../context";
 import { ConflictError, NotFoundError, ValidationError } from "../errors";
@@ -13,11 +14,6 @@ export const FEATURE_FLAGS = {
 } as const;
 export type FeatureFlag = keyof typeof FEATURE_FLAGS;
 
-export const orgSettingsInput = z.object({
-  name: z.string().trim().min(2).max(120),
-  timezone: z.string().trim().min(3).max(60),
-  features: z.record(z.string(), z.boolean()).default({}),
-});
 
 export async function updateOrganization(db: Database, ctx: ServiceContext, raw: z.input<typeof orgSettingsInput>) {
   authorize(ctx, "admin.manage");
@@ -48,12 +44,6 @@ export async function updateOrganization(db: Database, ctx: ServiceContext, raw:
   });
 }
 
-export const memberInput = z.object({
-  email: z.string().trim().toLowerCase().email(),
-  fullName: z.string().trim().min(2).max(120),
-  title: z.string().trim().max(80).optional(),
-  role: z.enum(ROLE_KEYS),
-});
 
 export async function addMember(db: Database, ctx: ServiceContext, raw: z.input<typeof memberInput>) {
   authorize(ctx, "admin.manage");

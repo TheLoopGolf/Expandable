@@ -193,7 +193,7 @@ export async function getKpis(db: Sql, ctx: ServiceContext, f: DashboardFilters)
       previousLabel: "vs 30 days ago",
       higherIsBetter: true,
       definition: "Unshipped quantity × price on confirmed, partially shipped and on-hold orders. The comparison reconstructs the backlog as of 30 days ago from confirmations, shipments and cancellations.",
-      href: "/sales/orders?status=open",
+      href: "/sales/orders?bucket=open",
     },
     {
       key: "otd",
@@ -215,7 +215,7 @@ export async function getKpis(db: Sql, ctx: ServiceContext, f: DashboardFilters)
       previousLabel: `${wos.onSchedule} of ${wos.total} open`,
       higherIsBetter: true,
       definition: "Open work orders (released, in progress, on hold) that are not on hold and not past their due date, as a share of all open work orders.",
-      href: "/production?filter=late",
+      href: "/production?late=late",
     },
     {
       key: "inventory",
@@ -237,7 +237,7 @@ export async function getKpis(db: Sql, ctx: ServiceContext, f: DashboardFilters)
       previousLabel: `${shortages.length} shortage line${shortages.length === 1 ? "" : "s"} total`,
       higherIsBetter: false,
       definition: "Items whose usable stock minus open work-order and sales-order demand is negative and is not covered by approved purchase orders or open work orders due within 14 days.",
-      href: "/inventory?filter=shortage",
+      href: "/inventory?alert=shortage",
     },
     {
       key: "quality",

@@ -105,7 +105,7 @@ async function ExecutiveView({ user, f, now }: Props) {
         <Panel title="Production queue" action={<PanelLink href="/production">All work orders</PanelLink>} className="xl:col-span-3">
           <ProductionQueue rows={queue} today={f.today} />
         </Panel>
-        <Panel title={`Inventory alerts (${alerts.length})`} action={<PanelLink href="/inventory?filter=alerts">Inventory</PanelLink>} className="xl:col-span-2">
+        <Panel title={`Inventory alerts (${alerts.length})`} action={<PanelLink href="/inventory?alert=any">Inventory</PanelLink>} className="xl:col-span-2">
           <AlertsList alerts={alerts} />
         </Panel>
       </div>
@@ -248,7 +248,7 @@ async function WarehouseView({ user, f, now }: Props) {
             />
           )}
         </Panel>
-        <Panel title={`Shipments due in 7 days (${shipments.length})`} action={<PanelLink href="/sales/orders?status=open">Sales orders</PanelLink>}>
+        <Panel title={`Shipments due in 7 days (${shipments.length})`} action={<PanelLink href="/sales/orders?bucket=open">Sales orders</PanelLink>}>
           {shipments.length === 0 ? (
             <EmptyState title="No shipments due" className="m-4" />
           ) : (

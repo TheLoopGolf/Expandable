@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { bomLinesInput, bomInput, ecoInput } from "@/lib/validation";
 import type { Database, Sql } from "../db";
 import { authorize, today, type ServiceContext } from "../context";
 import { ConflictError, NotFoundError, ValidationError } from "../errors";
@@ -6,26 +7,8 @@ import { dec } from "@/lib/decimal";
 import { findBomCycle, type BomMap } from "@/lib/domain/bom";
 import { recordAudit } from "./audit";
 import { nextNumber } from "./numbering";
-import { isoDate, optionalText, positiveQty, qty, uuid } from "./schemas";
 
-export const bomLinesInput = z
-  .array(
-    z.object({
-      componentItemId: uuid,
-      quantityPer: positiveQty,
-      scrapPct: qty.default("0").refine((v) => Number(v) < 100, "Scrap must be below 100%"),
-      reference: optionalText,
-    }),
-  )
-  .min(1, "Add at least one component");
 
-export const bomInput = z.object({
-  itemId: uuid,
-  revision: z.string().trim().min(1).max(10),
-  effectiveFrom: isoDate.optional().nullable(),
-  notes: optionalText,
-  lines: bomLinesInput,
-});
 
 /** Effective BOM graph used for cycle checks: released + draft revisions (excluding one bom). */
 async function loadBomGraph(tx: Sql, ctx: ServiceContext, excludeBomId?: string): Promise<BomMap> {
@@ -210,14 +193,6 @@ async function copyBomRevisionTx(tx: Sql, ctx: ServiceContext, bomId: string, ne
   return { id: copy.id };
 }
 
-export const ecoInput = z.object({
-  itemId: uuid,
-  title: z.string().trim().min(5).max(160),
-  description: optionalText,
-  reason: optionalText,
-  toRevision: z.string().trim().min(1).max(10),
-  priority: z.enum(["low", "normal", "high", "urgent"]).default("normal"),
-});
 
 /** Open an engineering change; creates the draft BOM revision it will release. */
 export async function createEngineeringChange(db: Database, ctx: ServiceContext, raw: z.input<typeof ecoInput>) {

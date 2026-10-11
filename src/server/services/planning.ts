@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { mrpRunInput, uuid } from "@/lib/validation";
 import type { Database, Sql } from "../db";
 import { authorize, today, type ServiceContext } from "../context";
 import { ConflictError, NotFoundError, ValidationError } from "../errors";
@@ -10,12 +11,7 @@ import { recordAudit } from "./audit";
 import { nextNumber } from "./numbering";
 import { createPurchaseOrderTx } from "./purchasing";
 import { createWorkOrderTx } from "./production";
-import { uuid } from "./schemas";
 
-export const mrpRunInput = z.object({
-  horizonDays: z.coerce.number().int().min(7).max(365).default(90),
-  siteId: uuid.optional().nullable(),
-});
 
 /** Gather MRP inputs from live data (optionally limited to one site's warehouses). */
 export async function loadMrpInput(tx: Sql, ctx: ServiceContext, siteId?: string | null) {

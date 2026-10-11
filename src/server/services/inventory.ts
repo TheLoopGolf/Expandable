@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { itemInput, miscReceiptInput, miscIssueInput, transferInput, countInput } from "@/lib/validation";
 import type { Database } from "../db";
 import { authorize, today, type ServiceContext } from "../context";
 import { ConflictError, NotFoundError, ValidationError } from "../errors";
@@ -9,31 +10,10 @@ import { withIdempotency } from "./idempotency";
 import { postJournal } from "./journal";
 import { nextNumber } from "./numbering";
 import { assertBin, loadItem, loadWarehouse, pickStock, postMovement, upsertLot } from "./inventory-core";
-import { qty, positiveQty, money, optionalText, uuid, isoDate } from "./schemas";
 
 // ---------------------------------------------------------------------------
 // Item master
 // ---------------------------------------------------------------------------
-export const itemInput = z.object({
-  sku: z.string().trim().min(2).max(40).regex(/^[A-Za-z0-9._-]+$/, "Use letters, numbers, dot, dash or underscore"),
-  name: z.string().trim().min(2).max(120),
-  description: optionalText,
-  itemType: z.enum(["purchased", "manufactured"]),
-  category: z.string().trim().min(2).max(60),
-  productFamily: optionalText,
-  uom: z.string().trim().min(1).max(10).default("ea"),
-  standardCost: money,
-  listPrice: money.optional().nullable(),
-  preferredSupplierId: uuid.optional().nullable(),
-  leadTimeDays: z.coerce.number().int().min(0).max(365),
-  reorderPoint: qty,
-  safetyStock: qty,
-  minOrderQty: positiveQty,
-  tracking: z.enum(["none", "lot", "serial"]),
-  shelfLifeDays: z.coerce.number().int().positive().max(3650).optional().nullable(),
-  defaultWarehouseId: uuid.optional().nullable(),
-  lifecycleStatus: z.enum(["draft", "active", "hold", "obsolete"]).default("active"),
-});
 export type ItemInput = z.input<typeof itemInput>;
 
 export async function createItem(db: Database, ctx: ServiceContext, raw: ItemInput) {
@@ -126,18 +106,6 @@ export async function updateItem(db: Database, ctx: ServiceContext, itemId: stri
 // ---------------------------------------------------------------------------
 // Stock transactions (receipt, issue, transfer, cycle count)
 // ---------------------------------------------------------------------------
-export const miscReceiptInput = z.object({
-  itemId: uuid,
-  warehouseId: uuid,
-  binId: uuid.optional().nullable(),
-  quantity: positiveQty,
-  lotNumber: optionalText,
-  expiresOn: isoDate.optional().nullable(),
-  reason: z.string().trim().min(3, "Give a reason").max(200),
-  idempotencyKey: optionalText,
-  /** Opening balance (credits equity instead of inventory adjustments). Seed/import only. */
-  opening: z.boolean().optional(),
-});
 
 export async function receiveStock(db: Database, ctx: ServiceContext, raw: z.input<typeof miscReceiptInput>) {
   authorize(ctx, "inventory.transact");
@@ -196,15 +164,6 @@ export async function receiveStock(db: Database, ctx: ServiceContext, raw: z.inp
   );
 }
 
-export const miscIssueInput = z.object({
-  itemId: uuid,
-  warehouseId: uuid,
-  binId: uuid.optional().nullable(),
-  lotId: uuid.optional().nullable(),
-  quantity: positiveQty,
-  reason: z.string().trim().min(3, "Give a reason").max(200),
-  idempotencyKey: optionalText,
-});
 
 export async function issueStock(db: Database, ctx: ServiceContext, raw: z.input<typeof miscIssueInput>) {
   authorize(ctx, "inventory.transact");
@@ -260,17 +219,6 @@ export async function issueStock(db: Database, ctx: ServiceContext, raw: z.input
   );
 }
 
-export const transferInput = z.object({
-  itemId: uuid,
-  fromWarehouseId: uuid,
-  fromBinId: uuid.optional().nullable(),
-  lotId: uuid.optional().nullable(),
-  toWarehouseId: uuid,
-  toBinId: uuid.optional().nullable(),
-  quantity: positiveQty,
-  reason: optionalText,
-  idempotencyKey: optionalText,
-});
 
 export async function transferStock(db: Database, ctx: ServiceContext, raw: z.input<typeof transferInput>) {
   authorize(ctx, "inventory.transact");
@@ -319,15 +267,6 @@ export async function transferStock(db: Database, ctx: ServiceContext, raw: z.in
   );
 }
 
-export const countInput = z.object({
-  itemId: uuid,
-  warehouseId: uuid,
-  binId: uuid.optional().nullable(),
-  lotId: uuid.optional().nullable(),
-  countedQuantity: qty,
-  reason: z.string().trim().min(3, "Give a reason").max(200),
-  idempotencyKey: optionalText,
-});
 
 /** Cycle count: post the difference between counted and system quantity as an adjustment. */
 export async function countAdjust(db: Database, ctx: ServiceContext, raw: z.input<typeof countInput>) {

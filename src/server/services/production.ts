@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { workOrderInput, issueInput, productionInput } from "@/lib/validation";
 import type { Database, Sql } from "../db";
 import { authorize, today, type ServiceContext } from "../context";
 import { ConflictError, NotFoundError, ValidationError } from "../errors";
@@ -21,22 +22,7 @@ import {
   setReservation,
   upsertLot,
 } from "./inventory-core";
-import { isoDate, optionalText, positiveQty, qty, uuid } from "./schemas";
 
-export const workOrderInput = z.object({
-  itemId: uuid,
-  quantity: positiveQty,
-  plannedStart: isoDate,
-  dueDate: isoDate,
-  warehouseId: uuid.optional().nullable(),
-  materialWarehouseId: uuid.optional().nullable(),
-  workCenterId: uuid.optional().nullable(),
-  priority: z.enum(["low", "normal", "high", "urgent"]).default("normal"),
-  salesOrderLineId: uuid.optional().nullable(),
-  notes: optionalText,
-  source: z.enum(["manual", "mrp"]).default("manual"),
-  release: z.boolean().optional(),
-});
 
 interface WoRow {
   id: string;
@@ -313,13 +299,6 @@ export async function materialReadiness(tx: Sql, ctx: ServiceContext, woId: stri
   });
 }
 
-export const issueInput = z.object({
-  workOrderId: uuid,
-  idempotencyKey: z.string().trim().min(8).max(100),
-  lines: z
-    .array(z.object({ materialId: uuid, quantity: positiveQty, lotId: uuid.optional().nullable() }))
-    .min(1, "Enter at least one quantity to issue"),
-});
 
 /**
  * Issue components to a work order in one transaction. Lots on hold, quarantined or
@@ -414,15 +393,6 @@ export async function issueMaterials(db: Database, ctx: ServiceContext, raw: z.i
   );
 }
 
-export const productionInput = z.object({
-  workOrderId: uuid,
-  quantityGood: qty,
-  quantityScrap: qty.default("0"),
-  lotNumber: optionalText,
-  binId: uuid.optional().nullable(),
-  notes: optionalText,
-  idempotencyKey: z.string().trim().min(8).max(100),
-});
 
 /**
  * Record good output and scrap. Output can never exceed the planned quantity and is

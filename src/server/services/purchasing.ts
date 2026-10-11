@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { purchaseOrderInput, receiveInput, supplierInput } from "@/lib/validation";
 import type { Database, Sql } from "../db";
 import { authorize, today, type ServiceContext } from "../context";
 import { ConflictError, NotFoundError, ValidationError } from "../errors";
@@ -9,27 +10,7 @@ import { withIdempotency } from "./idempotency";
 import { postJournal } from "./journal";
 import { nextNumber } from "./numbering";
 import { assertBin, loadItem, loadWarehouse, postMovement, upsertLot } from "./inventory-core";
-import { isoDate, money, optionalText, positiveQty, uuid } from "./schemas";
 
-export const purchaseOrderInput = z.object({
-  supplierId: uuid,
-  warehouseId: uuid,
-  orderDate: isoDate.optional(),
-  expectedDate: isoDate,
-  notes: optionalText,
-  source: z.enum(["manual", "mrp"]).default("manual"),
-  submitForApproval: z.boolean().optional(),
-  lines: z
-    .array(
-      z.object({
-        itemId: uuid,
-        quantity: positiveQty,
-        unitCost: money,
-        expectedDate: isoDate.optional(),
-      }),
-    )
-    .min(1, "Add at least one line"),
-});
 
 export async function createPurchaseOrder(db: Database, ctx: ServiceContext, raw: z.input<typeof purchaseOrderInput>) {
   authorize(ctx, "purchasing.manage");
@@ -138,22 +119,6 @@ export async function cancelPurchaseOrder(db: Database, ctx: ServiceContext, poI
   });
 }
 
-export const receiveInput = z.object({
-  purchaseOrderId: uuid,
-  idempotencyKey: z.string().trim().min(8).max(100),
-  lines: z
-    .array(
-      z.object({
-        lineId: uuid,
-        quantity: positiveQty,
-        lotNumber: optionalText,
-        expiresOn: isoDate.optional().nullable(),
-        binId: uuid.optional().nullable(),
-        quarantine: z.boolean().optional(),
-      }),
-    )
-    .min(1, "Enter a quantity for at least one line"),
-});
 
 /**
  * Receive against a purchase order. Validates outstanding quantity per line, creates or
@@ -377,15 +342,6 @@ export async function paySupplierBill(db: Database, ctx: ServiceContext, billId:
   });
 }
 
-export const supplierInput = z.object({
-  code: z.string().trim().min(2).max(20),
-  name: z.string().trim().min(2).max(120),
-  contactName: optionalText,
-  email: z.string().trim().email().optional().or(z.literal("")).transform((v) => v || undefined),
-  phone: optionalText,
-  paymentTermsDays: z.coerce.number().int().min(0).max(180).default(30),
-  defaultLeadTimeDays: z.coerce.number().int().min(0).max(365).default(14),
-});
 
 export async function createSupplier(db: Database, ctx: ServiceContext, raw: z.input<typeof supplierInput>) {
   authorize(ctx, "purchasing.manage");

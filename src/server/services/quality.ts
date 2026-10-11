@@ -1,30 +1,11 @@
 import { z } from "zod";
+import { qualityEventInput, holdInput, releaseHoldInput, updateEventInput, capaInput, inspectionInput } from "@/lib/validation";
 import type { Database, Sql } from "../db";
 import { authorize, type ServiceContext } from "../context";
 import { ConflictError, NotFoundError, ValidationError } from "../errors";
 import { recordAudit } from "./audit";
 import { nextNumber } from "./numbering";
-import { isoDate, optionalText, qty, uuid } from "./schemas";
 
-export const qualityEventInput = z.object({
-  eventType: z.enum(["ncr", "complaint", "deviation", "audit_finding"]).default("ncr"),
-  title: z.string().trim().min(4).max(160),
-  description: optionalText,
-  severity: z.enum(["low", "medium", "high", "critical"]),
-  source: z.enum(["incoming", "in_process", "final", "customer", "internal"]).default("internal"),
-  itemId: uuid.optional().nullable(),
-  lotId: uuid.optional().nullable(),
-  workOrderId: uuid.optional().nullable(),
-  purchaseOrderId: uuid.optional().nullable(),
-  salesOrderId: uuid.optional().nullable(),
-  supplierId: uuid.optional().nullable(),
-  customerId: uuid.optional().nullable(),
-  quantityAffected: qty.optional().nullable(),
-  ownerId: uuid.optional().nullable(),
-  dueDate: isoDate.optional().nullable(),
-  placeHold: z.boolean().optional(),
-  holdReason: optionalText,
-});
 
 async function assertInOrg(tx: Sql, ctx: ServiceContext, table: string, id: string | null | undefined, label: string) {
   if (!id) return;
@@ -91,11 +72,6 @@ export async function openQualityEvent(db: Database, ctx: ServiceContext, raw: z
   });
 }
 
-export const holdInput = z.object({
-  lotId: uuid,
-  reason: z.string().trim().min(5, "Document the reason (at least 5 characters)").max(500),
-  qualityEventId: uuid.optional().nullable(),
-});
 
 export async function placeLotHold(db: Database, ctx: ServiceContext, raw: z.input<typeof holdInput>) {
   authorize(ctx, "quality.hold");
@@ -131,10 +107,6 @@ async function placeHoldTx(tx: Sql, ctx: ServiceContext, input: { lotId: string;
   return { id: hold.id };
 }
 
-export const releaseHoldInput = z.object({
-  holdId: uuid,
-  reason: z.string().trim().min(10, "Document the release justification (at least 10 characters)").max(1000),
-});
 
 /** Release a quality hold. Requires the quality.hold permission and a documented reason. */
 export async function releaseLotHold(db: Database, ctx: ServiceContext, raw: z.input<typeof releaseHoldInput>) {
@@ -194,13 +166,6 @@ export async function releaseQuarantine(db: Database, ctx: ServiceContext, lotId
   });
 }
 
-export const updateEventInput = z.object({
-  id: uuid,
-  status: z.enum(["open", "investigating", "pending_disposition", "closed", "canceled"]),
-  disposition: z.enum(["use_as_is", "rework", "scrap", "return_to_supplier"]).optional().nullable(),
-  rootCause: optionalText,
-  closureNotes: optionalText,
-});
 
 export async function updateQualityEvent(db: Database, ctx: ServiceContext, raw: z.input<typeof updateEventInput>) {
   authorize(ctx, "quality.manage");
@@ -244,13 +209,6 @@ export async function updateQualityEvent(db: Database, ctx: ServiceContext, raw:
   });
 }
 
-export const capaInput = z.object({
-  qualityEventId: uuid.optional().nullable(),
-  actionType: z.enum(["corrective", "preventive"]),
-  description: z.string().trim().min(5).max(1000),
-  ownerId: uuid.optional().nullable(),
-  dueDate: isoDate,
-});
 
 export async function createCapa(db: Database, ctx: ServiceContext, raw: z.input<typeof capaInput>) {
   authorize(ctx, "quality.manage");
@@ -311,18 +269,6 @@ export async function updateCapaStatus(
   });
 }
 
-export const inspectionInput = z.object({
-  inspectionType: z.enum(["incoming", "in_process", "final"]),
-  itemId: uuid,
-  lotId: uuid.optional().nullable(),
-  purchaseOrderId: uuid.optional().nullable(),
-  workOrderId: uuid.optional().nullable(),
-  quantityInspected: qty.refine((v) => Number(v) > 0, "Must be greater than zero"),
-  quantityRejected: qty.default("0"),
-  result: z.enum(["pass", "fail"]),
-  notes: optionalText,
-  openNcr: z.boolean().optional(),
-});
 
 export async function recordInspection(db: Database, ctx: ServiceContext, raw: z.input<typeof inspectionInput>) {
   authorize(ctx, "quality.manage");

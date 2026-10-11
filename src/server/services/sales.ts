@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { customerInput, salesOrderInput, shipInput } from "@/lib/validation";
 import type { Database, Sql } from "../db";
 import { authorize, today, type ServiceContext } from "../context";
 import { ConflictError, NotFoundError, ValidationError } from "../errors";
@@ -9,19 +10,7 @@ import { withIdempotency } from "./idempotency";
 import { postJournal } from "./journal";
 import { nextNumber } from "./numbering";
 import { availability, closeReservations, getReservation, loadItem, loadWarehouse, pickStock, postMovement, setReservation } from "./inventory-core";
-import { isoDate, money, optionalText, positiveQty, uuid } from "./schemas";
 
-export const customerInput = z.object({
-  code: z.string().trim().min(2).max(20),
-  name: z.string().trim().min(2).max(120),
-  contactName: optionalText,
-  email: z.string().trim().email().optional().or(z.literal("")).transform((v) => v || undefined),
-  phone: optionalText,
-  segment: optionalText,
-  paymentTermsDays: z.coerce.number().int().min(0).max(180).default(30),
-  creditLimit: money.optional().nullable(),
-  shipTo: optionalText,
-});
 
 export async function createCustomer(db: Database, ctx: ServiceContext, raw: z.input<typeof customerInput>) {
   authorize(ctx, "sales.manage");
@@ -46,19 +35,6 @@ export async function createCustomer(db: Database, ctx: ServiceContext, raw: z.i
   });
 }
 
-export const salesOrderInput = z.object({
-  customerId: uuid,
-  warehouseId: uuid,
-  orderDate: isoDate.optional(),
-  requestedDate: isoDate.optional().nullable(),
-  promisedDate: isoDate,
-  customerPo: optionalText,
-  notes: optionalText,
-  confirm: z.boolean().optional(),
-  lines: z
-    .array(z.object({ itemId: uuid, quantity: positiveQty, unitPrice: money.optional(), promisedDate: isoDate.optional() }))
-    .min(1, "Add at least one line"),
-});
 
 export async function createSalesOrder(db: Database, ctx: ServiceContext, raw: z.input<typeof salesOrderInput>) {
   authorize(ctx, "sales.manage");
@@ -211,14 +187,6 @@ export async function releaseSalesOrderReservations(db: Database, ctx: ServiceCo
   });
 }
 
-export const shipInput = z.object({
-  salesOrderId: uuid,
-  idempotencyKey: z.string().trim().min(8).max(100),
-  carrier: optionalText,
-  trackingNumber: optionalText,
-  createInvoice: z.boolean().optional(),
-  lines: z.array(z.object({ lineId: uuid, quantity: positiveQty })).min(1, "Enter a quantity for at least one line"),
-});
 
 /**
  * Confirm a (partial) shipment: consumes FEFO stock excluding held lots, prefers this
