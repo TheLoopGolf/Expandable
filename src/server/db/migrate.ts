@@ -10,7 +10,7 @@ export function listMigrations(dir = MIGRATIONS_DIR): { name: string; sql: strin
     .readdirSync(/*turbopackIgnore: true*/ dir)
     .filter((f) => f.endsWith(".sql"))
     .sort()
-    .map((name) => ({ name, sql: fs.readFileSync(/*turbopackIgnore: true*/ path.join(dir, name), "utf8") }));
+    .map((name) => ({ name, sql: fs.readFileSync(/*turbopackIgnore: true*/ path.join(/*turbopackIgnore: true*/ dir, name), "utf8") }));
 }
 
 /**
