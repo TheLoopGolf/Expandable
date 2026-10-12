@@ -46,10 +46,8 @@ export async function resetDemoDataAction(confirmation: string): Promise<ActionR
   g.__forgeflowResetting = true;
   try {
     const db = await getDb();
-    const { truncateAll } = await import("@/server/seed/ensure");
-    const { seedDemo } = await import("@/server/seed");
-    await truncateAll(db);
-    await seedDemo(db, { log: (m) => console.log(`[forgeflow] ${m}`) });
+    const { seedDatabase } = await import("@/server/seed/ensure");
+    await seedDatabase(db, (m) => console.log(`[forgeflow] ${m}`), { replace: true });
   } catch (err) {
     console.error("[forgeflow] demo reset failed", err);
     return { ok: false, error: "Reset failed; check the server log. Run `npm run db:reset` to rebuild the database." };

@@ -126,6 +126,7 @@ Details: [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md) · data model:
 
 ```bash
 npm run typecheck && npm run lint && npm test
+TEST_DATABASE_URL=postgresql://localhost/forgeflow_test npm test   # optional: also check the postgres.js driver
 npx playwright install chromium   # first time only, if Playwright has no browser yet
 npm run test:e2e
 ```
@@ -133,7 +134,8 @@ npm run test:e2e
 - **Unit/integration** (`tests/unit`): decimal math, business dates, BOM explosion/cycles/roll-up,
   MRP netting and pegging, the four workflows end to end against Postgres, negative-stock and
   over-receipt rejection, idempotent resubmission, append-only ledgers, balanced journals, role
-  permissions, cross-tenant isolation, RLS policies, and the operating-policy switches.
+  permissions, cross-tenant isolation, RLS policies, the operating-policy switches, the bulk
+  seed copy used for remote databases, and (with `TEST_DATABASE_URL`) postgres.js vs PGlite parity.
 - **E2E** (`tests/e2e`): demo sign-in, dashboard KPIs and chart tables, date/plant filters and KPI
   drill-down, read-only viewer, PO receipt with lot, work-order material issue and output,
   partial shipment and invoice, quality hold blocking issue and its release.
@@ -157,18 +159,32 @@ Copy `.env.example` to `.env.local`. With no variables the app runs in local dem
 
 ### Supabase + Vercel (recommended)
 
-1. Create a Supabase project. Copy the **Session pooler** connection string (Project Settings →
-   Database) and the project URL and anon key (Project Settings → API).
-2. Apply the schema and demo data from your machine:
+1. Create a Supabase project (any region close to your users). Copy the **Session pooler**
+   connection string (Connect → Session pooler, port 5432) and the project URL and anon key
+   (Project Settings → API).
+2. Apply the schema and load the demo data from your machine (about two minutes):
    ```bash
-   DATABASE_URL="postgresql://…pooler.supabase.com:5432/postgres" npm run db:migrate
-   DATABASE_URL="postgresql://…pooler.supabase.com:5432/postgres" npm run db:seed   # optional demo data
+   export DATABASE_URL="postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres"
+   npm run db:migrate
+   npm run db:seed        # optional: the fictional demo tenants
    ```
-   (Or run `supabase db push` with the Supabase CLI — the migrations live in `supabase/migrations`.)
+   The seed generates the 180-day history in an in-memory database and copies it in bulk
+   (about 20,000 rows in under a minute), so it does not depend on network latency. Migrations
+   are plain SQL in `supabase/migrations`; `supabase db push` applies the same files.
 3. Import the repository in Vercel and set environment variables: `DATABASE_URL` (pooler URL),
    `DATABASE_PREPARE=false`, `DATABASE_POOL_SIZE=3`, `SESSION_SECRET` (random 32+ bytes),
    `AUTH_MODE` and, for real accounts, `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+   To skip step 2, set `AUTO_MIGRATE=true` instead: the first request migrates and seeds an
+   empty database (it takes about a minute, so open `/api/health` once after deploying).
 4. Deploy. `GET /api/health` should return `{"ok":true,"database":"postgres"}`.
+
+If you can only reach the database through the Supabase SQL editor, apply the two migration
+files there, then generate SQL inserts locally with `scripts/export-demo-sql.ts` (see its header)
+and run them in name order.
+
+To keep a hosted demo fresh, set `ALLOW_DEMO_RESET=true` on that deployment so an admin can
+regenerate the data (dated to the current day) from **Settings → Data & environment**. Never set
+it on a database with real data.
 
 For real sign-in set `AUTH_MODE=supabase` and create users in Supabase Auth with the same email
 addresses as ForgeFlow members (seeded people use `@northstar.example`; add your own under

@@ -7,8 +7,7 @@
  */
 import { openDatabase, databaseMode, pgliteDataDir } from "../src/server/db";
 import { migrate } from "../src/server/db/migrate";
-import { seedDemo } from "../src/server/seed";
-import { ensureSeeded, truncateAll } from "../src/server/seed/ensure";
+import { ensureSeeded, seedDatabase } from "../src/server/seed/ensure";
 
 async function main() {
   const command = process.argv[2] ?? "setup";
@@ -28,8 +27,7 @@ async function main() {
       if (mode === "postgres" && process.env.ALLOW_DEMO_RESET !== "true") {
         throw new Error("Refusing to wipe a PostgreSQL database. Set ALLOW_DEMO_RESET=true if this is a disposable demo database.");
       }
-      await truncateAll(db);
-      await seedDemo(db, { log: (m) => console.log(`[forgeflow] ${m}`) });
+      await seedDatabase(db, (m) => console.log(`[forgeflow] ${m}`), { replace: true });
     }
   } finally {
     await db.close();

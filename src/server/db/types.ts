@@ -6,12 +6,17 @@ export interface Sql {
   query<T = Row>(text: string, params?: readonly unknown[]): Promise<T[]>;
 }
 
+/** A transaction handle; `exec` runs several unparameterized statements (migrations). */
+export interface TxSql extends Sql {
+  exec(text: string): Promise<void>;
+}
+
 export interface Database extends Sql {
   readonly kind: "pglite" | "postgres";
-  /** Run several statements without parameters (migrations). */
+  /** Run several statements without parameters, outside a transaction. */
   exec(text: string): Promise<void>;
   /** Run `fn` inside a single database transaction (rolled back if it throws). */
-  transaction<T>(fn: (tx: Sql) => Promise<T>): Promise<T>;
+  transaction<T>(fn: (tx: TxSql) => Promise<T>): Promise<T>;
   close(): Promise<void>;
 }
 

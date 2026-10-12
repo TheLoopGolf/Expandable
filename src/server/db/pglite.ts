@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { PGlite, types } from "@electric-sql/pglite";
-import type { Database, Sql } from "./types";
+import type { Database, Sql, TxSql } from "./types";
 
 const parsers = {
   // Business dates stay as 'YYYY-MM-DD' strings to avoid timezone shifts.
@@ -13,7 +13,6 @@ export async function createPgliteDatabase(dataDir?: string): Promise<Database> 
   const persistent = dataDir && dataDir !== "memory://" ? path.resolve(dataDir) : undefined;
   if (persistent) fs.mkdirSync(path.dirname(persistent), { recursive: true });
   const pg = new PGlite(persistent, {
-    parsers,
     relaxedDurability: process.env.PGLITE_RELAXED_DURABILITY === "true",
   });
   await pg.waitReady;
@@ -21,7 +20,8 @@ export async function createPgliteDatabase(dataDir?: string): Promise<Database> 
 
   const wrap = (q: { query: PGlite["query"] }): Sql => ({
     async query<T>(text: string, params?: readonly unknown[]) {
-      const result = await q.query<T>(text, params ? [...params] : undefined);
+      // Parsers must be passed per query: PGlite 0.5 ignores the constructor-level option.
+      const result = await q.query<T>(text, params ? [...params] : undefined, { parsers });
       return result.rows;
     },
   });
@@ -32,8 +32,15 @@ export async function createPgliteDatabase(dataDir?: string): Promise<Database> 
     async exec(text: string) {
       await pg.exec(text);
     },
-    transaction<T>(fn: (tx: Sql) => Promise<T>) {
-      return pg.transaction((tx) => fn(wrap(tx)));
+    transaction<T>(fn: (tx: TxSql) => Promise<T>) {
+      return pg.transaction((tx) =>
+        fn({
+          ...wrap(tx),
+          async exec(text: string) {
+            await tx.exec(text);
+          },
+        }),
+      );
     },
     async close() {
       await pg.close();

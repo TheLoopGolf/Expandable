@@ -32,7 +32,10 @@ export async function migrate(db: Database, dir = MIGRATIONS_DIR): Promise<strin
   const ran: string[] = [];
   for (const m of listMigrations(dir)) {
     if (applied.has(m.name)) continue;
-    await db.exec(`begin;\n${m.sql}\n;insert into app.schema_migrations (name) values ('${m.name.replace(/'/g, "''")}');\ncommit;`);
+    await db.transaction(async (tx) => {
+      await tx.exec(m.sql);
+      await tx.query(`insert into app.schema_migrations (name) values ($1)`, [m.name]);
+    });
     ran.push(m.name);
   }
   return ran;

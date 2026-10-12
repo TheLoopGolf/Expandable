@@ -19,7 +19,7 @@ function wrap(q: Sql): Sql {
 async function main() {
   const raw = await createPgliteDatabase("memory://");
   await migrate(raw);
-  const db: Database = { ...raw, ...wrap(raw), transaction: (fn) => raw.transaction((tx) => fn(wrap(tx))) };
+  const db: Database = { ...raw, ...wrap(raw), transaction: (fn) => raw.transaction((tx) => fn({ ...tx, ...wrap(tx) })) };
   await seedDemo(db, { days: Number(process.env.DAYS ?? 60), skipSecondTenant: true });
   const top = [...stats].sort((a, b) => b[1].ms - a[1].ms).slice(0, 25);
   for (const [k, v] of top) console.log(`${Math.round(v.ms).toString().padStart(6)}ms ${String(v.n).padStart(6)}x  ${k}`);
